@@ -1,3 +1,103 @@
 <resources>
-    <string name="app_name">bluetype</string>
+    <string name="app_name">BlueType</string>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">Bluetooth HID Status</string>
+    <string name="notification_channel_desc">Shows active connection state to your Windows PC</string>
+    <string name="notif_title_connected">Connected to %1$s</string>
+    <string name="notif_content_ready">Tap Send Clipboard or use Quick Settings</string>
+    <string name="notif_title_connecting">Connecting to PC…</string>
+    <string name="notif_title_disconnected">Disconnected</string>
+    <string name="notif_content_disconnected">Open app to reconnect</string>
+    <string name="notif_title_unsupported">HID Not Supported</string>
+    <string name="action_send_clipboard">Send Clipboard</string>
+
+    <!-- Quick Settings Tile -->
+    <string name="tile_label">Send Clipboard</string>
+    <string name="tile_subtitle_connected">Connected</string>
+    <string name="tile_subtitle_disconnected">Disconnected</string>
+
+    <!-- Transmit Feedback -->
+    <string name="clipboard_empty">Clipboard is empty</string>
+    <string name="send_success">Sent %1$d characters to PC</string>
+    <string name="send_success_with_dropped">Sent %1$d characters (%2$d unsupported skipped)</string>
+    <string name="sending_keystrokes">Typing to PC… (%1$d/%2$d)</string>
+
+    <!-- Sensitive Clipboard Prompt -->
+    <string name="sensitive_clip_title">Sensitive Content</string>
+    <string name="sensitive_clip_message">This clipboard content appears to be sensitive (e.g. from a password manager). Send anyway?</string>
+
+    <!-- Actions & Buttons -->
+    <string name="action_send">Send Now</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_scan">Scan for Devices</string>
+    <string name="action_stop_scan">Stop Scan</string>
+    <string name="action_forget">Forget</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_limitations">Limitations</string>
+    <string name="action_help">Help &amp; Permissions</string>
+    <string name="action_got_it">Got It</string>
+    <string name="fab_paste_to_pc">Paste to PC</string>
+
+    <!-- UI Headers & Sections -->
+    <string name="header_connected_device">Connected Device</string>
+    <string name="header_bonded_devices">Paired Devices</string>
+    <string name="header_nearby_devices">Nearby Devices</string>
+    <string name="no_device_connected">No Device Connected</string>
+    <string name="no_bonded_devices">No paired Bluetooth devices found</string>
+    <string name="no_nearby_devices">No nearby devices found. Tap Scan to search.</string>
+    <string name="device_status_connected">Connected as Keyboard</string>
+    <string name="device_status_connecting">Connecting…</string>
+    <string name="device_status_disconnected">Ready to connect</string>
+    <string name="device_status_unsupported">Hardware unsupported</string>
+    <string name="switch_devices">Other Devices</string>
+    <string name="badge_paired">Paired</string>
+    <string name="badge_unpaired">Unpaired</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_typing_speed">Typing Delay: %1$d ms</string>
+    <string name="settings_typing_speed_desc">Inter-keystroke delay to prevent Windows input buffer overflow</string>
+    <string name="settings_skip_unsupported">Skip unsupported characters</string>
+    <string name="settings_skip_unsupported_desc">When enabled, emoji and extended Unicode characters are skipped</string>
+    <string name="settings_replacement_char">Fallback replacement</string>
+    <string name="settings_replacement_char_desc">Character used when skipping is disabled (e.g. ?)</string>
+    <string name="settings_persistent_notif">Persistent Notification</string>
+    <string name="settings_persistent_notif_desc">Keep background connection alive and accessible from notification shade</string>
+    <string name="settings_auto_clear">Auto-clear clipboard</string>
+    <string name="settings_auto_clear_desc">Erase phone clipboard after successfully sending to PC</string>
+
+    <!-- Limitations Screen -->
+    <string name="limitations_title">How BlueType Works &amp; Limitations</string>
+    <string name="limitation_1_title">1. Keystroke Simulation, Not Cloud Sync</string>
+    <string name="limitation_1_desc">Bluetooth HID has no concept of clipboard or paste. BlueType registers your phone as a physical Bluetooth keyboard and simulates keystrokes for each character at high speed. Make sure your cursor is focused in the text box on Windows.</string>
+    <string name="limitation_2_title">2. Character Set &amp; US Keyboard Layout</string>
+    <string name="limitation_2_desc">Standard USB HID communicates keycodes assuming a US QWERTY layout. Extended Unicode (emoji, non-Latin alphabets) cannot be simulated reliably over standard HID without special PC drivers.</string>
+    <string name="limitation_3_title">3. Chipset Compatibility</string>
+    <string name="limitation_3_desc">Android requires hardware Bluetooth HID Device role support. Some phone chipsets do not support this feature.</string>
+    <string name="limitation_4_title">4. Zero Network &amp; Privacy First</string>
+    <string name="limitation_4_desc">BlueType requests zero Internet permissions. Your clipboard data never leaves your device except over the direct local Bluetooth connection.</string>
+
+    <!-- Onboarding / Permissions -->
+    <string name="onboarding_title">Permissions &amp; Setup</string>
+    <string name="onboarding_desc">BlueType requires local Bluetooth permissions to act as an input keyboard for your Windows PC.</string>
+    <string name="perm_bt_title">Nearby Devices (Bluetooth)</string>
+    <string name="perm_bt_desc">Required to pair and connect with your PC as an HID keyboard.</string>
+    <string name="perm_notif_title">Notifications</string>
+    <string name="perm_notif_desc">Displays persistent connection status and one-tap send action.</string>
+    <string name="action_grant_permissions">Grant Permissions</string>
+
+    <!-- Content Descriptions for Accessibility -->
+    <string name="cd_connect_device">Connect to %1$s</string>
+    <string name="cd_disconnect_device">Disconnect from %1$s</string>
+    <string name="cd_open_settings">Open Settings</string>
+    <string name="cd_open_limitations">View Limitations</string>
+    <string name="cd_open_help">View Help and Permissions</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_scan">Scan for nearby Bluetooth devices</string>
+    <string name="cd_device_icon">Bluetooth device icon</string>
+    <string name="cd_fab_paste">Paste phone clipboard to Windows PC</string>
 </resources>

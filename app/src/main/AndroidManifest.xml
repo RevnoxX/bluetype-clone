@@ -2,7 +2,41 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Legacy Bluetooth permissions for Android 11 (API 30) and below -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <!-- Required for Bluetooth scanning on Android 9-11 (API 28-30) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+
+    <!-- Bluetooth runtime permissions for Android 12+ (API 31+) -->
+    <!-- Required to connect and communicate with host PC as an HID keyboard profile -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Required to scan for nearby Bluetooth PCs; neverForLocation asserts no GPS location is derived -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <!-- Required to advertise HID service profile to nearby hosts -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
+    <!-- Foreground service permissions to maintain live Bluetooth connection -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Explicit foreground service type for Android 14+ (API 34+) live device connections -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
+    <!-- Required for the persistent connection status notification on Android 13+ (API 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Required for haptic feedback confirmation when sending clipboard -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!--
+        Deliberately NO android.permission.INTERNET anywhere in this application.
+        Clipboard contents never leave the device except directly over the local Bluetooth HID link (§7).
+    -->
+
     <application
+        android:name=".BlueTypeApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -11,6 +45,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Bluetype">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -19,10 +54,36 @@
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Trampoline activity: briefly gains focus to read clipboard and finishes immediately (§4.2) -->
+        <activity
+            android:name=".ui.TrampolineActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:exported="false" />
+
+        <!-- Foreground service maintaining live Bluetooth HID connection -->
+        <service
+            android:name=".service.HidForegroundService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false" />
+
+        <!-- Quick Settings Tile for one-tap clipboard transmission -->
+        <service
+            android:name=".service.SendClipboardTileService"
+            android:label="@string/tile_label"
+            android:icon="@drawable/ic_launcher_foreground"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>
