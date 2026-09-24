@@ -80,7 +80,7 @@ class SendClipboardUseCaseTest {
 
         assertTrue(result is SendClipboardUseCase.SendOutcome.Failure)
         assertEquals(
-            "Bluetooth keyboard is not connected to a PC",
+            "[ERR_BT_NOT_CONNECTED: 0x01] Bluetooth keyboard is not connected to a PC",
             (result as SendClipboardUseCase.SendOutcome.Failure).errorMessage
         )
     }

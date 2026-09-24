@@ -62,7 +62,7 @@ class BluetoothClassicHidTransport(
             if (!registered) {
                 // If the OS returns false for registration, the chipset does not support HID device role (§4.1)
                 _connectionState.value = ConnectionState.Unsupported(
-                    "Your phone's Bluetooth hardware or firmware does not support acting as a keyboard"
+                    "[ERR_UNSUPPORTED_CHIPSET: 0x10] Your phone's Bluetooth hardware or firmware does not support acting as a keyboard"
                 )
             } else {
                 refreshBondedDevices()
@@ -137,7 +137,7 @@ class BluetoothClassicHidTransport(
         }
 
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
-            _connectionState.value = ConnectionState.Disconnected("Bluetooth is disabled")
+            _connectionState.value = ConnectionState.Disconnected("[ERR_BLUETOOTH_OFF: 0x11] Bluetooth is disabled")
             return
         }
 
@@ -205,11 +205,11 @@ class BluetoothClassicHidTransport(
                 val success = hidDevice?.connect(device) ?: false
                 Timber.d("hidDevice.connect(%s) result: %b", device.address, success)
                 if (!success) {
-                    _connectionState.value = ConnectionState.Disconnected("Failed to initiate connection")
+                    _connectionState.value = ConnectionState.Disconnected("[ERR_CONN_INIT_FAILED: 0x06] Failed to initiate connection")
                 }
             } catch (e: SecurityException) {
                 Timber.e(e, "SecurityException in connect")
-                _connectionState.value = ConnectionState.Disconnected("Permission denied")
+                _connectionState.value = ConnectionState.Disconnected("[ERR_PERMISSION_DENIED: 0x03] Permission denied")
             }
         }
     }
@@ -242,22 +242,23 @@ class BluetoothClassicHidTransport(
         onProgress: ((sent: Int, total: Int) -> Unit)?
     ): Result<Int> {
         val device = _connectedDevice.value
-            ?: return Result.failure(IllegalStateException("No host PC connected"))
+            ?: return Result.failure(IllegalStateException("[ERR_BT_NOT_CONNECTED: 0x01] No host PC connected"))
         val hid = hidDevice
-            ?: return Result.failure(IllegalStateException("HID service not registered"))
+            ?: return Result.failure(IllegalStateException("[ERR_HID_NOT_REGISTERED: 0x02] HID service not registered"))
 
         if (!hasBluetoothConnectPermission()) {
-            return Result.failure(SecurityException("Missing BLUETOOTH_CONNECT permission"))
+            return Result.failure(SecurityException("[ERR_PERMISSION_DENIED: 0x03] Missing BLUETOOTH_CONNECT permission"))
         }
 
         var sentCount = 0
         val total = reports.size
+        val reportId = HidReportDescriptor.REPORT_ID_KEYBOARD.toInt()
 
         for (i in reports.indices) {
             // Verify connection hasn't dropped mid-transmission (§10)
             if (_connectedDevice.value == null) {
                 return Result.failure(
-                    IllegalStateException("Connection dropped after sending $sentCount of $total reports")
+                    IllegalStateException("[ERR_CONNECTION_LOST: 0x04] Connection dropped after sending $sentCount of $total reports")
                 )
             }
 
@@ -267,21 +268,32 @@ class BluetoothClassicHidTransport(
             try {
                 val sent = hid.sendReport(
                     device,
-                    HidReportDescriptor.REPORT_ID_KEYBOARD.toInt(),
+                    reportId,
                     reportBytes
                 )
                 if (!sent) {
-                    Timber.w("Failed to send HID report at index %d", i)
+                    Timber.w("[ERR_SEND_FAILED: 0x05] Bluetooth sendReport returned false at report %d", i)
                 }
             } catch (e: Exception) {
-                return Result.failure(e)
+                return Result.failure(IllegalStateException("[ERR_SEND_FAILED: 0x05] ${e.message ?: "Report dispatch failed"}", e))
             }
 
             sentCount++
             onProgress?.invoke(sentCount, total)
 
-            if (delayPerKeystrokeMs > 0) {
-                delay(delayPerKeystrokeMs)
+            // High-speed typing optimization:
+            // Inter-character delay is only applied AFTER key-up (KeyReport.EMPTY).
+            // Key-down is immediately followed by key-up with 0 delay (or 1ms if high delay set),
+            // preventing the host OS from interpreting a delayed key-down as a "long press".
+            if (report == KeyReport.EMPTY) {
+                if (delayPerKeystrokeMs > 0) {
+                    delay(delayPerKeystrokeMs)
+                }
+            } else {
+                // Key down: tiny 1ms yield only if safe, otherwise 0ms to let packets queue sequentially
+                if (delayPerKeystrokeMs >= 15) {
+                    delay(2)
+                }
             }
         }
 

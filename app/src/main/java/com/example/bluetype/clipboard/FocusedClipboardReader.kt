@@ -37,7 +37,7 @@ class FocusedClipboardReader(
             manager.primaryClip
         } catch (e: SecurityException) {
             Timber.e(e, "SecurityException reading primary clip — window may lack input focus")
-            return ClipboardResult.Unreadable("Window not focused")
+            return ClipboardResult.Unreadable("[ERR_WINDOW_NOT_FOCUSED: 0x22] Window not focused")
         }
 
         if (primaryClip == null || primaryClip.itemCount == 0) {
@@ -53,7 +53,7 @@ class FocusedClipboardReader(
 
         if (text.isNullOrEmpty()) {
             return if (!isText) {
-                ClipboardResult.Unreadable("Only text can be sent via Bluetooth keyboard")
+                ClipboardResult.Unreadable("[ERR_NON_TEXT_CLIP: 0x23] Only text can be sent via Bluetooth keyboard")
             } else {
                 ClipboardResult.Empty
             }

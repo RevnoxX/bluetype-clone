@@ -40,7 +40,7 @@ class SendClipboardUseCase(
     ): SendOutcome {
         val state = hidTransport.connectionState.value
         if (state !is ConnectionState.Connected) {
-            return SendOutcome.Failure("Bluetooth keyboard is not connected to a PC")
+            return SendOutcome.Failure("[ERR_BT_NOT_CONNECTED: 0x01] Bluetooth keyboard is not connected to a PC")
         }
 
         val settings = settingsProvider.settingsFlow.first()
@@ -55,10 +55,10 @@ class SendClipboardUseCase(
         if (conversion.reports.isEmpty()) {
             return if (text.isNotEmpty()) {
                 SendOutcome.Failure(
-                    "All ${text.length} characters were unsupported by the keyboard table"
+                    "[ERR_CHARS_UNSUPPORTED: 0x30] All ${text.length} characters were unsupported by the keyboard table"
                 )
             } else {
-                SendOutcome.Failure("Nothing to send")
+                SendOutcome.Failure("[ERR_CLIPBOARD_EMPTY: 0x20] Nothing to send")
             }
         }
 
@@ -79,7 +79,7 @@ class SendClipboardUseCase(
                 droppedCount = conversion.droppedCharCount
             )
         } else {
-            val error = result.exceptionOrNull()?.message ?: "Keystroke transmission failed"
+            val error = result.exceptionOrNull()?.message ?: "[ERR_SEND_FAILED: 0x05] Keystroke transmission failed"
             SendOutcome.Failure(error)
         }
     }

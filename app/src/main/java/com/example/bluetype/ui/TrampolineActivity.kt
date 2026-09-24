@@ -50,7 +50,7 @@ class TrampolineActivity : ComponentActivity() {
 
         when (val result = clipboardReader.readCurrentClipboard()) {
             is ClipboardResult.Empty -> {
-                showToast(getString(R.string.clipboard_empty))
+                showToast("[ERR_CLIPBOARD_EMPTY: 0x20] " + getString(R.string.clipboard_empty))
                 finish()
             }
             is ClipboardResult.Unreadable -> {

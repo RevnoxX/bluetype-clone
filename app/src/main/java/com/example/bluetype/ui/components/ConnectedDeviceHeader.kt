@@ -3,6 +3,7 @@ package com.example.bluetype.ui.components
 import android.bluetooth.BluetoothDevice
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,19 +75,42 @@ fun ConnectedDeviceHeader(
         label = "statusColorAnimation"
     )
 
+    val isConnected = connectionState is ConnectionState.Connected
+    val shimmerBrush = if (isConnected) {
+        rememberShimmerBrush(
+            shimmerColor = ConnectedGreen.copy(alpha = 0.28f),
+            durationMs = 2200
+        )
+    } else null
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            containerColor = if (isConnected) {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            }
         ),
-        border = BorderStroke(1.dp, statusColor.copy(alpha = 0.4f))
+        border = BorderStroke(
+            if (isConnected) 1.5.dp else 1.dp,
+            if (isConnected) ConnectedGreen.copy(alpha = 0.75f) else statusColor.copy(alpha = 0.4f)
+        )
     ) {
-        Column(
-            modifier = Modifier.padding(18.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            if (shimmerBrush != null) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(shimmerBrush)
+                )
+            }
+            Column(
+                modifier = Modifier.padding(18.dp)
+            ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -227,6 +251,7 @@ fun ConnectedDeviceHeader(
                     }
                 }
             }
+        }
         }
     }
 }

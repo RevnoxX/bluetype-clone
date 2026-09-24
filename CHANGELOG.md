@@ -3,6 +3,12 @@
 All notable changes to the BlueType (Clipboard to PC) project will be documented in this file.
 
 ## 2026-09-24
+- Optimized typing throughput in `BluetoothClassicHidTransport`: tightly coupled key-down and key-up reports (0ms gap) and adjusted inter-character delays with a 2ms default and 0ms Turbo option.
+- Throttled `MainViewModel` keystroke progress notifications (min 80ms interval) to eliminate main-thread Compose recomposition thrashing during active transmission.
+- Redesigned `BluetoothDeviceItem` card layout: preserved Bluetooth/Desktop iconography, set device name as title, positioned action buttons horizontally at the bottom of the card, and eliminated narrow vertical-strip wrapping.
+- Added `DeviceInfoSheet` drawer/sheet displaying detailed device specifications (MAC address with 1-tap copy, pairing bond state, Bluetooth architecture, major device class, RSSI, HID profile status).
+- Added `Shimmer.kt` and applied shiny animated shimmer brush effect to `ConnectedDeviceHeader` when in connected state.
+- Standardized all error messages with exact error codes (`[ERR_BT_NOT_CONNECTED: 0x01]`, `[ERR_HID_NOT_REGISTERED: 0x02]`, `[ERR_PERMISSION_DENIED: 0x03]`, `[ERR_CLIPBOARD_EMPTY: 0x20]`, etc.).
 - Added `ConnectionState.kt`: Sealed hierarchy modeling HID connection states (`Disconnected`, `Connecting`, `Connected`, `Unsupported`).
 - Added `HidReportDescriptor.kt`: USB HID boot keyboard descriptor byte array with Report ID 1 and SDP settings builder.
 - Added `HidTransport.kt`: Swappable interface defining contracts for Bluetooth HID device lifecycle and keystroke sending.

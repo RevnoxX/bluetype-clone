@@ -78,11 +78,14 @@ import com.example.bluetype.ui.theme.ConnectedGreen
 import com.example.bluetype.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
+import android.bluetooth.BluetoothDevice
+import com.example.bluetype.ui.components.DeviceInfoSheet
+
 /**
  * MainScreen — Primary user interface for BlueType.
  *
  * Responsibility: Hosts connected device header, device discovery LazyColumn, settings, and clipboard FAB.
- * Depends on: [MainViewModel], [ConnectedDeviceHeader], [BluetoothDeviceItem].
+ * Depends on: [MainViewModel], [ConnectedDeviceHeader], [BluetoothDeviceItem], [DeviceInfoSheet].
  * Notes: Implements clean, professional minimal layout per user specification.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,6 +106,12 @@ fun MainScreen(
     var showSettings by remember { mutableStateOf(false) }
     var showLimitations by remember { mutableStateOf(false) }
     var showPermissions by remember { mutableStateOf(false) }
+
+    var infoDevice by remember { mutableStateOf<BluetoothDevice?>(null) }
+    var infoDeviceName by remember { mutableStateOf("") }
+    var infoDeviceAddress by remember { mutableStateOf("") }
+    var infoDeviceBonded by remember { mutableStateOf(false) }
+    var infoDeviceRssi by remember { mutableStateOf<Short?>(null) }
 
     // Start/stop foreground service when settings or connection changes
     LaunchedEffect(settings.showPersistentNotification, uiState.connectionState) {
@@ -308,14 +317,22 @@ fun MainScreen(
                         val isConnecting = uiState.connectionState is ConnectionState.Connecting &&
                                 (uiState.connectionState as ConnectionState.Connecting).device?.address == device.address
 
+                        val devName = try { device.name ?: device.address } catch (e: SecurityException) { device.address }
                         BluetoothDeviceItem(
-                            name = try { device.name ?: device.address } catch (e: SecurityException) { device.address },
+                            name = devName,
                             address = device.address,
                             isBonded = true,
                             isConnected = isConnected,
                             isConnecting = isConnecting,
                             onConnect = { viewModel.connectDevice(device) },
-                            onDisconnect = { viewModel.disconnectDevice() }
+                            onDisconnect = { viewModel.disconnectDevice() },
+                            onInfoClick = {
+                                infoDevice = device
+                                infoDeviceName = devName
+                                infoDeviceAddress = device.address
+                                infoDeviceBonded = true
+                                infoDeviceRssi = null
+                            }
                         )
                     }
                 }
@@ -401,7 +418,14 @@ fun MainScreen(
                             isConnected = isConnected,
                             isConnecting = isConnecting,
                             onConnect = { viewModel.connectDevice(discovered.device) },
-                            onDisconnect = { viewModel.disconnectDevice() }
+                            onDisconnect = { viewModel.disconnectDevice() },
+                            onInfoClick = {
+                                infoDevice = discovered.device
+                                infoDeviceName = discovered.name
+                                infoDeviceAddress = discovered.address
+                                infoDeviceBonded = discovered.isBonded
+                                infoDeviceRssi = discovered.rssi
+                            }
                         )
                     }
                 }
@@ -462,6 +486,23 @@ fun MainScreen(
         OnboardingSheet(
             onDismiss = { showPermissions = false },
             onRequestPermissions = onRequestPermissions
+        )
+    }
+
+    // Device Info Bottom Sheet / Drawer
+    if (infoDevice != null) {
+        val currentConnected = uiState.connectedDevice?.address == infoDeviceAddress &&
+                uiState.connectionState is ConnectionState.Connected
+        DeviceInfoSheet(
+            device = infoDevice!!,
+            name = infoDeviceName,
+            address = infoDeviceAddress,
+            isBonded = infoDeviceBonded,
+            isConnected = currentConnected,
+            rssi = infoDeviceRssi,
+            onDismiss = { infoDevice = null },
+            onConnect = { viewModel.connectDevice(infoDevice!!) },
+            onDisconnect = { viewModel.disconnectDevice() }
         )
     }
 }

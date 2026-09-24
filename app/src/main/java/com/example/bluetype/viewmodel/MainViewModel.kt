@@ -108,17 +108,17 @@ class MainViewModel(
         val currentState = _uiState.value.connectionState
         if (currentState !is ConnectionState.Connected) {
             _uiState.value = _uiState.value.copy(
-                feedbackMessage = "Connect to a PC before sending clipboard"
+                feedbackMessage = "[ERR_BT_NOT_CONNECTED: 0x01] Connect to a Windows PC before sending clipboard"
             )
             return
         }
 
         when (val clipResult = clipboardReader.readCurrentClipboard()) {
             is ClipboardResult.Empty -> {
-                _uiState.value = _uiState.value.copy(feedbackMessage = "Clipboard is empty")
+                _uiState.value = _uiState.value.copy(feedbackMessage = "[ERR_CLIPBOARD_EMPTY: 0x20] Clipboard is empty")
             }
             is ClipboardResult.Unreadable -> {
-                _uiState.value = _uiState.value.copy(feedbackMessage = clipResult.reason)
+                _uiState.value = _uiState.value.copy(feedbackMessage = "[ERR_CLIPBOARD_UNREADABLE: 0x21] ${clipResult.reason}")
             }
             is ClipboardResult.Sensitive -> {
                 // Prompt user for confirmation before sending sensitive text (§9)
@@ -153,8 +153,13 @@ class MainViewModel(
                 sendProgress = Pair(0, text.length)
             )
 
+            var lastProgressUpdate = 0L
             val outcome = sendClipboardUseCase.execute(text) { sent, total ->
-                _uiState.value = _uiState.value.copy(sendProgress = Pair(sent, total))
+                val now = System.currentTimeMillis()
+                if (sent == total || now - lastProgressUpdate >= 80L) {
+                    lastProgressUpdate = now
+                    _uiState.value = _uiState.value.copy(sendProgress = Pair(sent, total))
+                }
             }
 
             when (outcome) {

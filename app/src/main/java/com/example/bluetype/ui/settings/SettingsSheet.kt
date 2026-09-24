@@ -97,9 +97,14 @@ fun SettingsSheet(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
-                    val approxCps = if (settings.typingDelayMs > 0) 1000 / settings.typingDelayMs else 1000
+                    val speedText = if (settings.typingDelayMs == 0L) {
+                        "Typing Delay: 0 ms (Turbo / Instant)"
+                    } else {
+                        val approxCps = 1000 / settings.typingDelayMs
+                        stringResource(R.string.settings_typing_speed, settings.typingDelayMs) + " (~$approxCps cps)"
+                    }
                     Text(
-                        text = stringResource(R.string.settings_typing_speed, settings.typingDelayMs) + " (~$approxCps cps)",
+                        text = speedText,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -114,8 +119,8 @@ fun SettingsSheet(
             Slider(
                 value = settings.typingDelayMs.toFloat(),
                 onValueChange = { onTypingDelayChange(it.toLong()) },
-                valueRange = 5f..50f,
-                steps = 8,
+                valueRange = 0f..40f,
+                steps = 7,
                 modifier = Modifier.padding(vertical = 4.dp)
             )
 

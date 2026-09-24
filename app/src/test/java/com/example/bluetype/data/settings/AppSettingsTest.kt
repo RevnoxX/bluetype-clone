@@ -18,7 +18,7 @@ class AppSettingsTest {
     @Test
     fun testDefaultSettings() {
         val settings = AppSettings()
-        assertEquals(10L, settings.typingDelayMs)
+        assertEquals(2L, settings.typingDelayMs)
         assertTrue(settings.skipUnsupportedChars)
         assertEquals("?", settings.unsupportedCharReplacement)
         assertTrue(settings.showPersistentNotification)

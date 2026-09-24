@@ -57,7 +57,7 @@ class SettingsRepository(
         }
         .map { preferences ->
             AppSettings(
-                typingDelayMs = preferences[PreferencesKeys.TYPING_DELAY_MS] ?: 10L,
+                typingDelayMs = preferences[PreferencesKeys.TYPING_DELAY_MS] ?: 2L,
                 skipUnsupportedChars = preferences[PreferencesKeys.SKIP_UNSUPPORTED] ?: true,
                 unsupportedCharReplacement = preferences[PreferencesKeys.REPLACEMENT_CHAR] ?: "?",
                 showPersistentNotification = preferences[PreferencesKeys.SHOW_NOTIFICATION] ?: true,
