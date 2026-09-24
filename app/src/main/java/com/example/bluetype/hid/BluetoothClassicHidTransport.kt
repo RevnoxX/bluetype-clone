@@ -158,14 +158,16 @@ class BluetoothClassicHidTransport(
 
         try {
             val sdp = HidReportDescriptor.buildSdpSettings("BlueType Keyboard")
-            // QoS settings configured for HID keyboard per Bluetooth HID Profile spec:
-            // 800 bytes/sec token rate, 9 byte bucket, 11.25ms latency request for low-latency host polling.
+            // QoS: generous byte budget with burst headroom so the Bluetooth controller/host
+            // doesn't rate-limit reports below what the app's own pacing (AppSettings.typingDelayMs)
+            // controls. The previous 800 B/s, 9-byte bucket config throttled the L2CAP channel
+            // to well under 1 char/sec regardless of in-app delay settings.
             val qos = BluetoothHidDeviceAppQosSettings(
                 BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-                800,
-                9,
-                0,
-                11250,
+                64000,   // token rate: bytes/sec budget
+                64,      // token bucket size: allow bursting several reports
+                0,       // peak bandwidth: unspecified
+                BluetoothHidDeviceAppQosSettings.MAX, // latency: don't constrain
                 BluetoothHidDeviceAppQosSettings.MAX
             )
 
@@ -309,7 +311,7 @@ class BluetoothClassicHidTransport(
                     )
                     if (!dispatched) {
                         attempts++
-                        delay(3L)
+                        delay(1L) // reduced from 3L now that QoS no longer starves the channel
                     }
                 } catch (e: Exception) {
                     return@withContext Result.failure(
