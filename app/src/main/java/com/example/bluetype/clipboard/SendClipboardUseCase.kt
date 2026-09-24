@@ -4,7 +4,9 @@ import com.example.bluetype.data.settings.SettingsProvider
 import com.example.bluetype.hid.ConnectionState
 import com.example.bluetype.hid.HidTransport
 import com.example.bluetype.hid.TextToKeystrokes
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -37,10 +39,10 @@ class SendClipboardUseCase(
     suspend fun execute(
         text: String,
         onProgress: ((sent: Int, total: Int) -> Unit)? = null
-    ): SendOutcome {
+    ): SendOutcome = withContext(Dispatchers.IO) {
         val state = hidTransport.connectionState.value
         if (state !is ConnectionState.Connected) {
-            return SendOutcome.Failure("[ERR_BT_NOT_CONNECTED: 0x01] Bluetooth keyboard is not connected to a PC")
+            return@withContext SendOutcome.Failure("[ERR_BT_NOT_CONNECTED: 0x01] Bluetooth keyboard is not connected to a PC")
         }
 
         val settings = settingsProvider.settingsFlow.first()
@@ -53,34 +55,34 @@ class SendClipboardUseCase(
         )
 
         if (conversion.reports.isEmpty()) {
-            return if (text.isNotEmpty()) {
+            if (text.isNotEmpty()) {
                 SendOutcome.Failure(
                     "[ERR_CHARS_UNSUPPORTED: 0x30] All ${text.length} characters were unsupported by the keyboard table"
                 )
             } else {
                 SendOutcome.Failure("[ERR_CLIPBOARD_EMPTY: 0x20] Nothing to send")
             }
-        }
-
-        Timber.d("Starting transmission: %d reports to send", conversion.reports.size)
-
-        val result = hidTransport.sendKeystrokes(
-            reports = conversion.reports,
-            delayPerKeystrokeMs = settings.typingDelayMs,
-            onProgress = onProgress
-        )
-
-        return if (result.isSuccess) {
-            if (settings.autoClearClipboard) {
-                clipboardReader.clearClipboard()
-            }
-            SendOutcome.Success(
-                charactersSent = conversion.reports.size / 2,
-                droppedCount = conversion.droppedCharCount
-            )
         } else {
-            val error = result.exceptionOrNull()?.message ?: "[ERR_SEND_FAILED: 0x05] Keystroke transmission failed"
-            SendOutcome.Failure(error)
+            Timber.d("Starting transmission: %d reports to send", conversion.reports.size)
+
+            val result = hidTransport.sendKeystrokes(
+                reports = conversion.reports,
+                delayPerKeystrokeMs = settings.typingDelayMs,
+                onProgress = onProgress
+            )
+
+            if (result.isSuccess) {
+                if (settings.autoClearClipboard) {
+                    clipboardReader.clearClipboard()
+                }
+                SendOutcome.Success(
+                    charactersSent = conversion.reports.size / 2,
+                    droppedCount = conversion.droppedCharCount
+                )
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "[ERR_SEND_FAILED: 0x05] Keystroke transmission failed"
+                SendOutcome.Failure(error)
+            }
         }
     }
 }

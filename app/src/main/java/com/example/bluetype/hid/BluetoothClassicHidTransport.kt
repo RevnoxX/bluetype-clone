@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHidDevice
+import android.bluetooth.BluetoothHidDeviceAppQosSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
@@ -15,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -156,17 +158,41 @@ class BluetoothClassicHidTransport(
 
         try {
             val sdp = HidReportDescriptor.buildSdpSettings("BlueType Keyboard")
-            val registered = device.registerApp(
-                sdp,
-                null,
-                null,
-                executor,
-                hidCallback
+            // QoS settings configured for HID keyboard per Bluetooth HID Profile spec:
+            // 800 bytes/sec token rate, 9 byte bucket, 11.25ms latency request for low-latency host polling.
+            val qos = BluetoothHidDeviceAppQosSettings(
+                BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
+                800,
+                9,
+                0,
+                11250,
+                BluetoothHidDeviceAppQosSettings.MAX
             )
+
+            var registered = false
+            try {
+                registered = device.registerApp(
+                    sdp,
+                    qos,
+                    qos,
+                    executor,
+                    hidCallback
+                )
+            } catch (e: Exception) {
+                Timber.w(e, "registerApp with QoS failed; falling back to default QoS")
+                registered = device.registerApp(
+                    sdp,
+                    null,
+                    null,
+                    executor,
+                    hidCallback
+                )
+            }
+
             Timber.d("hidDevice.registerApp initiated: %b", registered)
             if (!registered) {
                 _connectionState.value = ConnectionState.Unsupported(
-                    "Your phone's Bluetooth hardware or firmware does not support acting as a keyboard"
+                    "[ERR_UNSUPPORTED_CHIPSET: 0x10] Your phone's Bluetooth hardware or firmware does not support acting as a keyboard"
                 )
             }
         } catch (e: SecurityException) {
@@ -240,24 +266,30 @@ class BluetoothClassicHidTransport(
         reports: List<KeyReport>,
         delayPerKeystrokeMs: Long,
         onProgress: ((sent: Int, total: Int) -> Unit)?
-    ): Result<Int> {
+    ): Result<Int> = withContext(Dispatchers.IO) {
         val device = _connectedDevice.value
-            ?: return Result.failure(IllegalStateException("[ERR_BT_NOT_CONNECTED: 0x01] No host PC connected"))
+            ?: return@withContext Result.failure(IllegalStateException("[ERR_BT_NOT_CONNECTED: 0x01] No host PC connected"))
         val hid = hidDevice
-            ?: return Result.failure(IllegalStateException("[ERR_HID_NOT_REGISTERED: 0x02] HID service not registered"))
+            ?: return@withContext Result.failure(IllegalStateException("[ERR_HID_NOT_REGISTERED: 0x02] HID service not registered"))
 
         if (!hasBluetoothConnectPermission()) {
-            return Result.failure(SecurityException("[ERR_PERMISSION_DENIED: 0x03] Missing BLUETOOTH_CONNECT permission"))
+            return@withContext Result.failure(SecurityException("[ERR_PERMISSION_DENIED: 0x03] Missing BLUETOOTH_CONNECT permission"))
         }
 
         var sentCount = 0
         val total = reports.size
         val reportId = HidReportDescriptor.REPORT_ID_KEYBOARD.toInt()
 
+        // High-throughput streaming pacing:
+        // Key-press duration (pulse width): 5ms ensures Windows kbdhid.sys and kbdclass.sys register the keydown.
+        // Inter-keystroke interval: controlled by delayPerKeystrokeMs, with a minimum 4ms buffer for Turbo mode.
+        val pressPulseMs = 5L
+        val interKeyDelayMs = if (delayPerKeystrokeMs <= 0L) 4L else delayPerKeystrokeMs
+
         for (i in reports.indices) {
             // Verify connection hasn't dropped mid-transmission (§10)
             if (_connectedDevice.value == null) {
-                return Result.failure(
+                return@withContext Result.failure(
                     IllegalStateException("[ERR_CONNECTION_LOST: 0x04] Connection dropped after sending $sentCount of $total reports")
                 )
             }
@@ -265,39 +297,45 @@ class BluetoothClassicHidTransport(
             val report = reports[i]
             val reportBytes = report.toByteArray()
 
-            try {
-                val sent = hid.sendReport(
-                    device,
-                    reportId,
-                    reportBytes
-                )
-                if (!sent) {
-                    Timber.w("[ERR_SEND_FAILED: 0x05] Bluetooth sendReport returned false at report %d", i)
+            // Non-blocking retry with backoff to absorb Bluetooth L2CAP buffer saturation
+            var attempts = 0
+            var dispatched = false
+            while (!dispatched && attempts < 12) {
+                try {
+                    dispatched = hid.sendReport(
+                        device,
+                        reportId,
+                        reportBytes
+                    )
+                    if (!dispatched) {
+                        attempts++
+                        delay(3L)
+                    }
+                } catch (e: Exception) {
+                    return@withContext Result.failure(
+                        IllegalStateException("[ERR_SEND_FAILED: 0x05] ${e.message ?: "Report dispatch failed"}", e)
+                    )
                 }
-            } catch (e: Exception) {
-                return Result.failure(IllegalStateException("[ERR_SEND_FAILED: 0x05] ${e.message ?: "Report dispatch failed"}", e))
+            }
+
+            if (!dispatched) {
+                Timber.w("[ERR_SEND_FAILED: 0x05] Bluetooth sendReport buffer exhausted at report %d after 12 retries", i)
             }
 
             sentCount++
             onProgress?.invoke(sentCount, total)
 
-            // High-speed typing optimization:
-            // Inter-character delay is only applied AFTER key-up (KeyReport.EMPTY).
-            // Key-down is immediately followed by key-up with 0 delay (or 1ms if high delay set),
-            // preventing the host OS from interpreting a delayed key-down as a "long press".
+            // Streaming pacing:
             if (report == KeyReport.EMPTY) {
-                if (delayPerKeystrokeMs > 0) {
-                    delay(delayPerKeystrokeMs)
-                }
+                // Post-release delay between discrete characters
+                delay(interKeyDelayMs)
             } else {
-                // Key down: tiny 1ms yield only if safe, otherwise 0ms to let packets queue sequentially
-                if (delayPerKeystrokeMs >= 15) {
-                    delay(2)
-                }
+                // Hold key-down long enough for Windows HID stack to reliably sample it
+                delay(pressPulseMs)
             }
         }
 
-        return Result.success(sentCount)
+        Result.success(sentCount)
     }
 
     private fun hasBluetoothConnectPermission(): Boolean {

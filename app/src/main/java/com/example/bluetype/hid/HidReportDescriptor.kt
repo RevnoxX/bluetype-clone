@@ -71,7 +71,7 @@ object HidReportDescriptor {
             deviceName,
             "Bluetooth HID Clipboard Bridge",
             "BlueType",
-            BluetoothHidDevice.SUBCLASS1_COMBO,
+            BluetoothHidDevice.SUBCLASS1_KEYBOARD,
             KEYBOARD_DESCRIPTOR
         )
     }
