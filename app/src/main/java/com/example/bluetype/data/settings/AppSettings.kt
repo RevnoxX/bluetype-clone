@@ -8,7 +8,7 @@ package com.example.bluetype.data.settings
  * Notes: Mirrored to DataStore preferences for persistent storage (§6).
  */
 data class AppSettings(
-    val typingDelayMs: Long = 2L,
+    val typingDelayMs: Long = 1L,
     val skipUnsupportedChars: Boolean = true,
     val unsupportedCharReplacement: String = "?",
     val showPersistentNotification: Boolean = true,
